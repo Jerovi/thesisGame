@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crop Word Scramble - Final Challenge</title>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f8ff;
+    text-align: center;
+    padding: 30px;
+    color: #2c3e50;
+  }
+
+  #scrambledWord {
+    font-size: 36px;
+    font-weight: bold;
+    color: #27ae60;
+    margin: 20px 0;
+    letter-spacing: 4px;
+  }
+
+  #info {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+
+  #timer {
+    font-size: 22px;
+    font-weight: bold;
+    color: #c0392b;
+  }
+
+  #tip {
+    font-style: italic;
+    color: #2980b9;
+    margin: 10px 0;
+  }
+
+  input {
+    padding: 10px;
+    font-size: 18px;
+    width: 250px;
+    border-radius: 5px;
+    border: 2px solid #27ae60;
+  }
+
+  button {
+    padding: 12px 25px;
+    font-size: 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    margin: 10px;
+    color: white;
+  }
+
+  #playBtn { background-color: #27ae60; }
+  #submitBtn { background-color: #2980b9; display: none; }
+  #nextBtn { background-color: #8e44ad; display: none; }
+
+  #feedback {
+    font-size: 22px;
+    font-weight: bold;
+    margin-top: 20px;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>🌾 Crop Word Scramble</h1>
+
+<div id="info">
+  🏆 Score: <span id="score">0</span>
+</div>
+
+<div id="scrambledWord">Press PLAY to start</div>
+<div id="timer"></div>
+<div id="tip"></div>
+
+<input id="guessInput" placeholder="Type your answer" autocomplete="off" style="display:none;">
+<br>
+
+<button id="playBtn">▶ PLAY</button>
+<button id="submitBtn">Submit</button>
+<button id="nextBtn">Next</button>
+
+<div id="feedback"></div>
+
+<script>
+const wordSets = {
+  easy: [
+    { word: "RICE", tip: "Staple grain" },
+    { word: "CORN", tip: "Also called maize" }
+  ],
+  medium: [
+    { word: "BANANA", tip: "Yellow fruit" },
+    { word: "MANGO", tip: "King of Fruits" }
+  ],
+  hard: [
+    { word: "SUGARCANE", tip: "Used to make sugar" },
+    { word: "PINEAPPLE", tip: "Spiky fruit" }
+  ]
+};
+
+const difficulties = ["easy", "medium", "hard"];
+const timeLimits = { easy: 20, medium: 12, hard: 7 };
+
+let difficultyIndex, wordIndex, score;
+let timer, timeLeft, currentWords;
+let gameActive = false;
+let awaitingNext = false;
+
+const scrambledWordEl = document.getElementById("scrambledWord");
+const tipEl = document.getElementById("tip");
+const timerEl = document.getElementById("timer");
+const guessInput = document.getElementById("guessInput");
+const submitBtn = document.getElementById("submitBtn");
+const nextBtn = document.getElementById("nextBtn");
+const playBtn = document.getElementById("playBtn");
+const feedbackEl = document.getElementById("feedback");
+const scoreEl = document.getElementById("score");
+
+function shuffle(word) {
+  let arr = word.split("");
+  do {
+    arr.sort(() => Math.random() - 0.5);
+  } while (arr.join("") === word);
+  return arr.join("");
+}
+
+function startTimer() {
+  clearInterval(timer);
+  timeLeft = timeLimits[difficulties[difficultyIndex]];
+  timerEl.textContent = `⏱ Time: ${timeLeft}`;
+
+  timer = setInterval(() => {
+    timeLeft--;
+    timerEl.textContent = `⏱ Time: ${timeLeft}`;
+    if (timeLeft <= 0) {
+      timeUpGameOver();
+    }
+  }, 1000);
+}
+
+function loadWord() {
+  gameActive = true;
+  awaitingNext = false;
+  currentWords = wordSets[difficulties[difficultyIndex]];
+
+  if (wordIndex >= currentWords.length) {
+    if (difficultyIndex < difficulties.length - 1) {
+      difficultyIndex++;
+      wordIndex = 0;
+      feedbackEl.style.color = "blue";
+      feedbackEl.textContent = "🔥 Difficulty Increased!";
+      setTimeout(loadWord, 1200);
+      return;
+    } else {
+      feedbackEl.style.color = "green";
+      feedbackEl.textContent = "🎉 YOU WIN! Restarting...";
+      setTimeout(showPlayScreen, 3000);
+      return;
+    }
+  }
+
+  const { word, tip } = currentWords[wordIndex];
+  scrambledWordEl.textContent = shuffle(word);
+  tipEl.textContent = "Tip: " + tip;
+  feedbackEl.textContent = "";
+  guessInput.value = "";
+  submitBtn.disabled = false;
+  nextBtn.style.display = "none";
+  startTimer();
+}
+
+function submitGuess() {
+  if (!gameActive) return;
+
+  const guess = guessInput.value.toUpperCase();
+  const answer = currentWords[wordIndex].word;
+  if (guess === "") return;
+
+  if (guess === answer) {
+    clearInterval(timer);
+    score += 10;
+    scoreEl.textContent = score;
+    feedbackEl.style.color = "green";
+    feedbackEl.textContent = "✅ Correct!";
+    submitBtn.disabled = true;
+    nextBtn.style.display = "inline-block";
+    gameActive = false;
+    awaitingNext = true;
+  } else {
+    feedbackEl.style.color = "red";
+    feedbackEl.textContent = "❌ Wrong! Try again.";
+    guessInput.value = "";
+  }
+}
+
+function timeUpGameOver() {
+  clearInterval(timer);
+  gameActive = false;
+
+  const answer = currentWords[wordIndex].word;
+  scrambledWordEl.textContent = "❌ GAME OVER";
+  tipEl.textContent = "";
+  timerEl.textContent = "";
+  feedbackEl.style.color = "red";
+  feedbackEl.innerHTML = `
+    ⏰ Time's up!<br>
+    Correct Answer: <strong>${answer}</strong><br>
+    Restarting...
+  `;
+
+  submitBtn.style.display = "none";
+  nextBtn.style.display = "none";
+  guessInput.style.display = "none";
+
+  setTimeout(showPlayScreen, 3000);
+}
+
+function showPlayScreen() {
+  clearInterval(timer);
+  difficultyIndex = 0;
+  wordIndex = 0;
+  score = 0;
+  scoreEl.textContent = score;
+
+  scrambledWordEl.textContent = "Press PLAY to start";
+  tipEl.textContent = "";
+  timerEl.textContent = "";
+  feedbackEl.textContent = "";
+
+  playBtn.style.display = "inline-block";
+  submitBtn.style.display = "none";
+  nextBtn.style.display = "none";
+  guessInput.style.display = "none";
+}
+
+playBtn.addEventListener("click", () => {
+  playBtn.style.display = "none";
+  submitBtn.style.display = "inline-block";
+  guessInput.style.display = "inline-block";
+  loadWord();
+});
+
+submitBtn.addEventListener("click", submitGuess);
+nextBtn.addEventListener("click", () => {
+  wordIndex++;
+  loadWord();
+});
+
+// ⌨️ ENTER KEY SUPPORT (PLAY / SUBMIT / NEXT)
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+
+  if (playBtn.style.display === "inline-block") {
+    playBtn.click();
+  } else if (awaitingNext && nextBtn.style.display === "inline-block") {
+    wordIndex++;
+    loadWord();
+  } else if (gameActive) {
+    submitGuess();
+  }
+});
+
+showPlayScreen();
+</script>
+
+</body>
+</html>

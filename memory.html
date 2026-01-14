@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Memory Challenge</title>
+
+<style>
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+}
+
+h1 {
+  margin: 0.5rem 0;
+  color: #22c55e;
+}
+
+#stats {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#controls {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+
+button {
+  padding: 0.7rem 1.2rem;
+  font-size: 1rem;
+  border-radius: 999px;
+  border: none;
+  background: #22c55e;
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #38bdf8;
+}
+
+button.danger {
+  background: #ef4444;
+}
+
+#game {
+  width: 100%;
+  max-width: 360px;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.card {
+  background: #22c55e;
+  border-radius: 14px;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.card.flipped {
+  background: white;
+  color: black;
+  cursor: default;
+}
+
+#message {
+  margin-top: 0.8rem;
+  min-height: 1.4rem;
+  font-weight: bold;
+  text-align: center;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🧠 Memory Challenge</h1>
+
+<div id="stats">
+  <div>Level: <span id="level">1</span></div>
+  <div>Moves: <span id="moves">0</span></div>
+  <div>Time: <span id="timer">0</span>s</div>
+</div>
+
+<div id="controls">
+  <button id="playBtn">▶ Play</button>
+  <button id="pauseBtn" class="secondary" style="display:none;">⏸ Pause</button>
+  <button id="restartBtn" class="danger">↻ Restart</button>
+</div>
+
+<div id="game"></div>
+<div id="message"></div>
+
+<script>
+const icons = ['🍎','🍌','🍇','🍉','🍍','🍓','🥝','🍒','🥭','🍑','🍋','🍊'];
+
+const game = document.getElementById('game');
+const movesEl = document.getElementById('moves');
+const timerEl = document.getElementById('timer');
+const levelEl = document.getElementById('level');
+const messageEl = document.getElementById('message');
+const playBtn = document.getElementById('playBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const restartBtn = document.getElementById('restartBtn');
+
+let level = 1;
+let pairs = 2;
+let moves = 0;
+let timeLeft = 0;
+let timer;
+let paused = false;
+
+let flipped = [];
+let lock = false;
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function gridCols(pairs) {
+  if (pairs <= 3) return 2;
+  if (pairs <= 6) return 3;
+  return 4;
+}
+
+function startTimer() {
+  clearInterval(timer);
+  timeLeft = Math.max(10, 30 - level * 2);
+  timerEl.textContent = timeLeft;
+
+  timer = setInterval(() => {
+    if (!paused) {
+      timeLeft--;
+      timerEl.textContent = timeLeft;
+      if (timeLeft <= 0) gameOver();
+    }
+  }, 1000);
+}
+
+function gameOver() {
+  clearInterval(timer);
+  messageEl.textContent = "⏰ Time’s up! Game Over.";
+  game.innerHTML = "";
+  playBtn.style.display = "inline-block";
+  pauseBtn.style.display = "none";
+}
+
+function nextLevel() {
+  level++;
+  pairs++;
+  setupGame();
+}
+
+function setupGame() {
+  clearInterval(timer);
+  game.innerHTML = "";
+  messageEl.textContent = "";
+  moves = 0;
+  flipped = [];
+  lock = false;
+
+  levelEl.textContent = level;
+  movesEl.textContent = moves;
+
+  const selected = icons.slice(0, pairs);
+  const cards = shuffle([...selected, ...selected]);
+
+  game.style.gridTemplateColumns = `repeat(${gridCols(pairs)}, 1fr)`;
+
+  cards.forEach(icon => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.textContent = '❓';
+
+    card.onclick = () => {
+      if (lock || paused || card.classList.contains('flipped')) return;
+
+      card.classList.add('flipped');
+      card.textContent = icon;
+      flipped.push(card);
+
+      if (flipped.length === 2) {
+        lock = true;
+        moves++;
+        movesEl.textContent = moves;
+
+        if (flipped[0].textContent === flipped[1].textContent) {
+          flipped = [];
+          lock = false;
+
+          if (document.querySelectorAll('.flipped').length === cards.length) {
+            clearInterval(timer);
+            messageEl.textContent = "✅ Level Complete!";
+            setTimeout(nextLevel, 1200);
+          }
+        } else {
+          setTimeout(() => {
+            flipped.forEach(c => {
+              c.classList.remove('flipped');
+              c.textContent = '❓';
+            });
+            flipped = [];
+            lock = false;
+          }, 700);
+        }
+      }
+    };
+
+    game.appendChild(card);
+  });
+
+  startTimer();
+}
+
+playBtn.onclick = () => {
+  playBtn.style.display = "none";
+  pauseBtn.style.display = "inline-block";
+  paused = false;
+  setupGame();
+};
+
+pauseBtn.onclick = () => {
+  paused = !paused;
+  pauseBtn.textContent = paused ? "▶ Resume" : "⏸ Pause";
+};
+
+restartBtn.onclick = () => {
+  level = 1;
+  pairs = 2;
+  playBtn.style.display = "inline-block";
+  pauseBtn.style.display = "none";
+  clearInterval(timer);
+  game.innerHTML = "";
+  messageEl.textContent = "";
+};
+</script>
+
+</body>
+</html>
